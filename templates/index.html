@@ -1,51 +1,25 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>File Converter</title>
-  </head>
-  <body>
-    <div>
-      <h1>File Converter</h1>
-      <ul>
-        <li><a href="/jpgtopng">JPG to PNG converter</a></li>
-        <li><a href="/pngtojpg">PNG to JPG converter</a></li>
-        <li><a href="/webptopng">WEBP to PNG converter</a></li>
-        <li><a href="/bmptopng">BMP to PNG converter</a></li>
-        <li><a href="/pngtopdf">PNG to PDF converter</a></li>
-      </ul>
-    </div>
-  </body>
-  <style>
-    div {
-        width: 80%;
-        margin: auto;
-        text-align: center;
-        background-color: #f2f2f2;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
-    }
-    ul {
-        list-style-type: none;
-        margin: 0;
-        padding: 0;
-    }
-    li {
-        display: inline-block;
-        margin-right: 20px;
-        font-size: 20px;
-    }
-    a {
-        text-decoration: none;
-        color: #333;
-        padding: 10px;
-        border-radius: 5px;
-        background-color: #f8f8f8;
-        box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.2);
-        transition: background-color 0.2s ease;
-    }
-    a:hover {
-        background-color: #e6e6e6;
-    }
-</style>
-</html>
+{% extends "base.html" %}
+{% from "_tools.html" import TOOLS %}
+
+{% block title %}Image Tools — Simple file converters{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Image Tools</h1>
+  <p class="lead">Quick image conversions. Files are converted in memory on the server and never stored. Pick a tool to get started.</p>
+</section>
+
+<ul class="tool-grid">
+  {% for tool_id, tool in TOOLS.items() %}
+  <li class="tool-card">
+    <h2 class="tool-card__title">
+      <a href="{{ url_for(tool_id) }}">{{ tool.name }}</a>
+    </h2>
+    <p class="tool-card__desc">{{ tool.description }}</p>
+    <p class="tool-card__meta">
+      Accepts {{ conversions[tool_id].extensions | join(", ") }} &rarr; {{ conversions[tool_id].output_ext }}
+    </p>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

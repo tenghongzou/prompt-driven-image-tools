@@ -1,164 +1,172 @@
-from flask import Flask, request, Response, render_template, make_response
-from PIL import Image
-import io
+"""Small Flask app that converts images between common formats, fully in memory."""
 
+import io
+import os
+import warnings
+from typing import Dict, NamedTuple, Tuple
+
+from flask import Flask, jsonify, render_template, request, send_file
+from PIL import Image
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
+
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB per upload
+MAX_PIXELS = 40_000_000  # width * height
 
 app = Flask(__name__)
+# Hard cap on the whole request body; slightly above MAX_FILE_SIZE to leave room for multipart overhead.
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/jpgtopng")
-def jpgtopng():
-    return render_template("jpgtopng.html")
-
-@app.route("/pngtojpg")
-def pngtojpg():
-    return render_template("pngtojpg.html")
-
-@app.route("/webptopng")
-def webptopng():
-    return render_template("webptopng.html")
-
-@app.route("/bmptopng")
-def bmptopng():
-    return render_template("bmptopng.html")
-
-@app.route("/pngtopdf")
-def pngtopdf():
-    return render_template("pngtopdf.html")
+# Pillow raises DecompressionBombError above 2 * MAX_IMAGE_PIXELS and only warns in between;
+# our explicit pixel check rejects the in-between range, so the warning is just noise.
+Image.MAX_IMAGE_PIXELS = MAX_PIXELS
+warnings.simplefilter("ignore", Image.DecompressionBombWarning)
 
 
-@app.route('/api/jpgtopng', methods=['POST'])
-def convert_jpg_to_png():
-    # check if image file exists in request
-    if 'image' not in request.files:
-        return "No image selected", 400
+class Conversion(NamedTuple):
+    extensions: Tuple[str, ...]  # accepted upload extensions (lowercase)
+    source_formats: Tuple[str, ...]  # accepted Pillow `img.format` values
+    output_format: str  # Pillow format name used when saving
+    mimetype: str
+    output_ext: str
 
-    image = request.files['image']
 
-    # check if file is JPEG format
-    if not image.filename.endswith('.jpg') and not image.filename.endswith('.jpeg'):
-        return "Image format must be JPEG", 400
+CONVERSIONS: Dict[str, Conversion] = {
+    # Pillow reports multi-picture JPEGs (common from phone cameras) as MPO.
+    "jpgtopng": Conversion((".jpg", ".jpeg"), ("JPEG", "MPO"), "PNG", "image/png", ".png"),
+    "pngtojpg": Conversion((".png",), ("PNG",), "JPEG", "image/jpeg", ".jpg"),
+    "webptopng": Conversion((".webp",), ("WEBP",), "PNG", "image/png", ".png"),
+    "bmptopng": Conversion((".bmp",), ("BMP",), "PNG", "image/png", ".png"),
+    "pngtopdf": Conversion((".png",), ("PNG",), "PDF", "application/pdf", ".pdf"),
+}
 
-    # check if file size is less than 5 MB
-    if len(image.read()) > 5 * 1024 * 1024:
-        return "File size must be less than 5 MB", 400
+PNG_MODES = {"1", "L", "LA", "I", "I;16", "P", "RGB", "RGBA"}
 
-    # reset file pointer to start
-    image.seek(0)
 
-    # convert JPEG image to PNG
-    with Image.open(image) as img:
-        png_image = io.BytesIO()
-        img.save(png_image, 'PNG')
-        png_image.seek(0)
+class ConversionError(Exception):
+    """A client-facing error that is turned into a JSON response."""
 
-    # create response object with PNG image as attachment
-    response = Response(png_image.getvalue(), mimetype='image/png')
-    response.headers.set('Content-Disposition', 'attachment', filename='converted.png')
+    def __init__(self, message: str, status: int = 400) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status = status
 
-    return response
 
-@app.route('/api/pngtojpg', methods=['POST'])
-def convert_png_to_jpg():
-    # Check if image is present in request
-    if 'image' not in request.files:
-        return Response("No image found", status=400)
-    
-    # Get the image from request
-    image_file = request.files['image']
-    
-    # Check if the file is a PNG image
-    if not image_file.filename.lower().endswith('.png'):
-        return Response("Only PNG images are supported", status=400)
-    
-    # Open the image file in Pillow
-    image = Image.open(image_file)
-    
-    # Convert the image to JPEG format
-    png_image = io.BytesIO()
-    image.convert('RGB').save(png_image, format='JPEG')
-    
-    # Create a response object with the converted image as an attachment
-    response = Response(png_image.getvalue(), mimetype='image/jpeg')
-    response.headers.set('Content-Disposition', 'attachment', filename='converted.jpg')
-    return response
+@app.errorhandler(ConversionError)
+def handle_conversion_error(error: ConversionError):
+    return jsonify(error=error.message), error.status
 
-@app.route('/api/webptopng', methods=['POST'])
-def convert_webp_to_png():
-    # check if request contains a file
-    if 'image' not in request.files:
-        return 'No file uploaded', 400
-    
-    file = request.files['image']
-    
-    # check if file is of webp format
-    if file.filename.split('.')[-1].lower() != 'webp':
-        return 'File format not supported', 400
-    
-    # convert webp image to png format
+
+@app.errorhandler(413)
+def handle_too_large(_error):
+    return jsonify(error="File is too large (max 5 MB)"), 413
+
+
+@app.errorhandler(500)
+def handle_internal_error(_error):
+    return jsonify(error="Conversion failed"), 500
+
+
+@app.context_processor
+def inject_conversion_rules():
+    # Templates read validation rules from here so they never drift from the API.
+    return {"conversions": CONVERSIONS, "max_file_size": MAX_FILE_SIZE}
+
+
+def load_upload(conversion: Conversion) -> Tuple[Image.Image, str]:
+    """Validate the uploaded file and return the opened image and its original filename."""
+    upload = request.files.get("image")
+    if upload is None:
+        raise ConversionError("No file uploaded (expected form field 'image')")
+    if not upload.filename:
+        raise ConversionError("No file selected")
+
+    ext = os.path.splitext(upload.filename)[1].lower()
+    if ext not in conversion.extensions:
+        raise ConversionError(f"Unsupported file type; expected {', '.join(conversion.extensions)}")
+
+    data = read_limited(upload)
+    too_many_pixels = ConversionError(f"Image is too large (max {MAX_PIXELS:,} pixels)")
     try:
-        img = Image.open(io.BytesIO(file.read()))
-        png_img = io.BytesIO()
-        img.save(png_img, 'png')
-        png_img.seek(0)
-    except Exception as e:
-        return 'Error converting image', 500
-    
-    # send png image as downloadable attachment
-    response = Response(png_img, mimetype='image/png')
-    response.headers.set('Content-Disposition', 'attachment', filename='converted.png')
-    return response
+        img = Image.open(io.BytesIO(data))
+    except Image.DecompressionBombError:
+        raise too_many_pixels from None
+    except OSError:
+        raise ConversionError("File is not a readable image") from None
 
-@app.route('/api/bmptopng', methods=['POST'])
-def convert_bmp_to_png():
-    if 'image' not in request.files:
-        return 'No image uploaded', 400
-    file = request.files['image']
-    if file.filename == '':
-        return 'No file selected', 400
-    if file and file.filename.lower().endswith('.bmp'):
-        img = Image.open(file)
-        with io.BytesIO() as output:
-            img.save(output, format='PNG')
-            output.seek(0)
-            
-            response = Response(output.getvalue(), mimetype='image/png')
-            response.headers.set('Content-Disposition', 'attachment', filename='converted.png')
-            return response
-    else:
-        return 'Invalid file type. Please select a BMP image.', 400
+    if img.width * img.height > MAX_PIXELS:
+        raise too_many_pixels
+    if img.format not in conversion.source_formats:
+        raise ConversionError(f"File content is {img.format}, not {conversion.source_formats[0]}")
 
-@app.route('/api/pngtopdf', methods=['POST'])
-def convert_png_to_pdf():
-    # Check if request contains a file
-    if 'image' not in request.files:
-        return 'No file found', 400
-    
-    # Get the file from the request
-    file = request.files['image']
-    
-    # Check if the file is a PNG image
-    if file.mimetype != 'image/png':
-        return 'File must be a PNG image', 400
-    
-    # Open the image and convert to PDF
-    with Image.open(file) as img:
-        # Create an in-memory file object for the PDF
-        pdf_buffer = io.BytesIO()
-        
-        # Convert the image to PDF and save to in-memory file object
-        img.save(pdf_buffer, format='PDF')
-        
-        # Set the position of the buffer to the start
-        pdf_buffer.seek(0)
-        
-        # Create a response with the PDF file as attachment
-        response = Response(pdf_buffer.getvalue(), mimetype='application/pdf')
-        response.headers.set('Content-Disposition', 'attachment', filename='converted.pdf')
-        return response
+    try:
+        img.load()  # decode now so truncated files are reported as bad input
+    except OSError:
+        raise ConversionError("File is not a readable image") from None
+    return img, upload.filename
+
+
+def read_limited(upload: FileStorage) -> bytes:
+    data = upload.read(MAX_FILE_SIZE + 1)
+    if len(data) > MAX_FILE_SIZE:
+        raise ConversionError("File is too large (max 5 MB)", 413)
+    return data
+
+
+def flatten_on_white(img: Image.Image) -> Image.Image:
+    """Return an RGB copy, compositing any transparency onto a white background."""
+    if not img.has_transparency_data:
+        return img.convert("RGB")
+    rgba = img.convert("RGBA")
+    background = Image.new("RGB", rgba.size, "white")
+    background.paste(rgba, mask=rgba.getchannel("A"))
+    return background
+
+
+def convert_image(img: Image.Image, output_format: str) -> io.BytesIO:
+    if output_format in ("JPEG", "PDF"):
+        img = flatten_on_white(img)
+    elif img.mode not in PNG_MODES:  # e.g. CMYK or YCbCr
+        img = img.convert("RGBA" if img.has_transparency_data else "RGB")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format=output_format)
+    buffer.seek(0)
+    return buffer
+
+
+def download_name(filename: str, ext: str) -> str:
+    stem = secure_filename(os.path.splitext(filename)[0]) or "converted"
+    return stem + ext
+
+
+def make_converter(conversion: Conversion):
+    def convert():
+        img, filename = load_upload(conversion)
+        try:
+            output = convert_image(img, conversion.output_format)
+        except Exception:
+            app.logger.exception("Conversion failed")
+            raise ConversionError("Conversion failed", 500) from None
+        return send_file(
+            output,
+            mimetype=conversion.mimetype,
+            as_attachment=True,
+            download_name=download_name(filename, conversion.output_ext),
+        )
+
+    return convert
+
+
+def make_page(template: str):
+    return lambda: render_template(template)
+
+
+app.add_url_rule("/", "index", make_page("index.html"))
+for name, conversion in CONVERSIONS.items():
+    app.add_url_rule(f"/{name}", name, make_page(f"{name}.html"))
+    app.add_url_rule(f"/api/{name}", f"api_{name}", make_converter(conversion), methods=["POST"])
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")

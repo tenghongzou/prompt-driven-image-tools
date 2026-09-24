@@ -1,0 +1,43 @@
+{#-
+  Display text for the converter tools, keyed by the same ids as
+  CONVERSIONS in app.py. Validation rules (extensions, output format,
+  size limit) are NOT duplicated here: app.py injects them into every
+  template as `conversions` and `max_file_size`.
+-#}
+{% set TOOLS = {
+  "jpgtopng": {
+    "name": "JPG to PNG",
+    "input_label": "JPG",
+    "output_label": "PNG",
+    "mimetypes": ["image/jpeg"],
+    "description": "Convert JPEG photos to lossless PNG images.",
+  },
+  "pngtojpg": {
+    "name": "PNG to JPG",
+    "input_label": "PNG",
+    "output_label": "JPG",
+    "mimetypes": ["image/png"],
+    "description": "Turn PNG images into compact JPGs. Transparency becomes white.",
+  },
+  "webptopng": {
+    "name": "WEBP to PNG",
+    "input_label": "WEBP",
+    "output_label": "PNG",
+    "mimetypes": ["image/webp"],
+    "description": "Convert WEBP images to widely supported PNG files.",
+  },
+  "bmptopng": {
+    "name": "BMP to PNG",
+    "input_label": "BMP",
+    "output_label": "PNG",
+    "mimetypes": ["image/bmp"],
+    "description": "Shrink bulky BMP bitmaps into compressed PNG images.",
+  },
+  "pngtopdf": {
+    "name": "PNG to PDF",
+    "input_label": "PNG",
+    "output_label": "PDF",
+    "mimetypes": ["image/png"],
+    "description": "Wrap a PNG image in a single-page PDF document.",
+  },
+} %}

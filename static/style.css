@@ -1,0 +1,426 @@
+/* ==========================================================================
+   Image Tools — single stylesheet
+   Minimal, responsive (360px and up), light + dark via prefers-color-scheme.
+   ========================================================================== */
+
+/* ---- Design tokens ------------------------------------------------------ */
+:root {
+  color-scheme: light dark;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-text: #1b1f24;
+  --color-muted: #5b6470;
+  --color-border: #d9dde3;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-contrast: #ffffff;
+  --color-accent-soft: #e8efff;
+  --color-error: #b42318;
+  --color-error-soft: #fdecea;
+  --color-success: #067647;
+  --color-success-soft: #e7f6ee;
+  --color-focus: #2563eb;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.1);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --max-width: 60rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f1216;
+    --color-surface: #171b21;
+    --color-text: #e6e9ee;
+    --color-muted: #9aa4b2;
+    --color-border: #2b313a;
+    --color-accent: #60a5fa;
+    --color-accent-hover: #93c5fd;
+    --color-accent-contrast: #0b1220;
+    --color-accent-soft: #172338;
+    --color-error: #fca5a5;
+    --color-error-soft: #3a1717;
+    --color-success: #86efac;
+    --color-success-soft: #12301f;
+    --color-focus: #93c5fd;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+}
+
+/* ---- Base --------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+h1,
+h2 {
+  line-height: 1.2;
+  margin: 0 0 var(--space-2);
+}
+
+h1 {
+  font-size: clamp(1.6rem, 1.2rem + 2vw, 2.25rem);
+}
+
+h2 {
+  font-size: 1.15rem;
+}
+
+p {
+  margin: 0 0 var(--space-4);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: -100%;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+.lead {
+  color: var(--color-muted);
+  font-size: 1.05rem;
+}
+
+/* ---- Header / footer ---------------------------------------------------- */
+.site-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
+  padding-block: var(--space-3);
+}
+
+.site-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav a {
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  color: var(--color-muted);
+  text-decoration: none;
+  font-size: 0.925rem;
+}
+
+.site-nav a:hover {
+  color: var(--color-text);
+  background: var(--color-accent-soft);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: 600;
+}
+
+main {
+  flex: 1;
+  padding-block: var(--space-8);
+}
+
+main:focus {
+  outline: none;
+}
+
+.site-footer {
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.site-footer p {
+  margin: 0;
+  padding-block: var(--space-4);
+}
+
+/* ---- Home: tool grid ---------------------------------------------------- */
+.hero {
+  margin-bottom: var(--space-6);
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tool-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.tool-card:hover,
+.tool-card:focus-within {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+}
+
+.tool-card__title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* Make the whole card clickable while keeping a single, meaningful link. */
+.tool-card__title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+.tool-card__title a:focus-visible {
+  outline: none;
+}
+
+.tool-card__title a:focus-visible::after {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.tool-card__desc {
+  color: var(--color-muted);
+  flex: 1;
+}
+
+.tool-card__meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Converter page ----------------------------------------------------- */
+.converter {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.converter__form {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.dropzone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone.is-dragover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+/* The real <input type="file"> is visually hidden but still focusable,
+   so keyboard users get a visible focus ring on the drop zone. */
+.dropzone:focus-within {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.dropzone__title {
+  font-weight: 600;
+}
+
+.dropzone__link {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.dropzone__hint {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.file-info {
+  margin: 0;
+  font-size: 0.925rem;
+  overflow-wrap: anywhere;
+}
+
+.button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-6);
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.button:hover {
+  background: var(--color-accent-hover);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.status {
+  margin: 0;
+  font-size: 0.925rem;
+}
+
+.status:empty {
+  display: none;
+}
+
+.status.is-error,
+.status.is-success {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+}
+
+.status.is-error {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.status.is-success {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+/* ---- Small screens ------------------------------------------------------ */
+@media (max-width: 30rem) {
+  main {
+    padding-block: var(--space-6);
+  }
+
+  .converter__form,
+  .tool-card {
+    padding: var(--space-4);
+  }
+
+  .dropzone {
+    padding-block: var(--space-6);
+  }
+}
+
+/* ---- Motion preferences ------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,43 @@
+{% from "_tools.html" import TOOLS %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Image Tools{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-title" href="{{ url_for('index') }}">Image Tools</a>
+      <nav aria-label="Converters">
+        <ul class="site-nav">
+          {% for tool_id, tool in TOOLS.items() %}
+          <li>
+            <a href="{{ url_for(tool_id) }}"
+               {% if active_tool is defined and active_tool == tool_id %}aria-current="page"{% endif %}>{{ tool.name }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Files are converted in memory and never stored. Maximum upload size: {{ max_file_size // (1024 * 1024) }} MB.</p>
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

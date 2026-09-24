@@ -1,0 +1,56 @@
+{#-
+  Shared page for every converter tool.
+
+  Child templates only need:
+      {% extends "converter.html" %}
+      {% set active_tool = "<tool id from _tools.html>" %}
+-#}
+{% extends "base.html" %}
+{% from "_tools.html" import TOOLS %}
+{% set tool = TOOLS[active_tool] %}
+{% set rules = conversions[active_tool] %}
+
+{% block title %}{{ tool.name }} Converter — Image Tools{% endblock %}
+
+{% block content %}
+<section class="converter">
+  <h1>{{ tool.name }} Converter</h1>
+  <p class="lead">{{ tool.description }}</p>
+
+  <form class="converter__form"
+        data-converter
+        data-endpoint="{{ url_for('api_' ~ active_tool) }}"
+        data-extensions="{{ rules.extensions | join(',') }}"
+        data-output-ext="{{ rules.output_ext[1:] }}"
+        data-label="{{ tool.input_label }}"
+        data-max-bytes="{{ max_file_size }}"
+        enctype="multipart/form-data"
+        novalidate>
+
+    <label class="dropzone" for="image" data-dropzone>
+      <input class="visually-hidden"
+             type="file"
+             id="image"
+             name="image"
+             accept="{{ (rules.extensions | list + tool.mimetypes) | join(',') }}"
+             aria-describedby="image-hint">
+      <span class="dropzone__title">Drop a {{ tool.input_label }} file here, or <span class="dropzone__link">browse</span></span>
+      <span class="dropzone__hint" id="image-hint">
+        {{ rules.extensions | join(", ") }} &middot; up to {{ max_file_size // (1024 * 1024) }} MB
+      </span>
+    </label>
+
+    <p class="file-info" data-file-info hidden></p>
+
+    <button class="button" type="submit" data-submit>
+      Convert to {{ tool.output_label }}
+    </button>
+
+    <p class="status" role="status" aria-live="polite" data-status></p>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='converter.js') }}" defer></script>
+{% endblock %}
